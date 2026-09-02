@@ -1,0 +1,40 @@
+name = "renamer-worker"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Serves apps/web's Vite build output as static assets alongside the API routes.
+# apps/web's build target must output here so a single `wrangler deploy` ships both.
+[assets]
+directory = "../web/dist"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "renamer-storage"
+
+# R2 lifecycle rules (staging/ expires after 7 days; done/ and review/ after 30 days)
+# are not expressible in wrangler.toml — configure them once with:
+#   wrangler r2 bucket lifecycle add renamer-storage \
+#     --prefix staging/ --expire-days 7
+#   wrangler r2 bucket lifecycle add renamer-storage \
+#     --prefix done/ --expire-days 30
+#   wrangler r2 bucket lifecycle add renamer-storage \
+#     --prefix review/ --expire-days 30
+
+[[containers]]
+image = "../ocr-service/Dockerfile"
+class_name = "OcrContainer"
+instance_type = "standard-1"
+max_instances = 1
+
+[[durable_objects.bindings]]
+name = "OCR_CONTAINER"
+class_name = "OcrContainer"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["OcrContainer"]
+
+# The entire Worker must sit behind Cloudflare Access, allow-listing exactly one
+# email address. Configure the Access application + policy in the Cloudflare
+# dashboard (Zero Trust) or via Terraform — not here, and not in application code.

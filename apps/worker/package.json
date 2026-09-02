@@ -1,0 +1,45 @@
+{
+  "name": "@org/worker",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "targets": {
+      "dev": {
+        "continuous": true,
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "wrangler dev",
+          "cwd": "apps/worker"
+        }
+      },
+      "build": {
+        "executor": "nx:run-commands",
+        "dependsOn": [
+          "^build",
+          "@org/web:build"
+        ],
+        "cache": true,
+        "options": {
+          "command": "wrangler deploy --dry-run --outdir=dist",
+          "cwd": "apps/worker"
+        }
+      },
+      "deploy": {
+        "executor": "nx:run-commands",
+        "dependsOn": [
+          "build"
+        ],
+        "options": {
+          "command": "wrangler deploy",
+          "cwd": "apps/worker"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@org/shared-types": "workspace:*",
+    "@cloudflare/containers": "^0.3.7",
+    "client-zip": "^2.5.0",
+    "hono": "^4.13.5"
+  }
+}

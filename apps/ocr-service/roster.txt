@@ -1,0 +1,2 @@
+# One known customer name per line, e.g.:
+# Horváth Ildikó
