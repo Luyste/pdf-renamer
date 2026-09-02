@@ -16,6 +16,8 @@ jobs:
         with:
           bun-version: latest
 
+      - uses: astral-sh/setup-uv@v10.0.1
+
       - run: bun install --frozen-lockfile
 
       - name: Build all apps
