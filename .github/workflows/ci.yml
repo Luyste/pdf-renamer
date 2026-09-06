@@ -26,6 +26,12 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
+      # Installs the shared uv workspace venv, including the root
+      # [dependency-groups].dev tools (ruff, pytest) that ocr-service's
+      # lint/test targets shell out to — without this they're never
+      # installed on a fresh checkout and fail with "Failed to spawn".
+      - run: uv sync
+
       - uses: nrwl/nx-set-shas@v4
 
       - name: Lint, test, build affected projects
