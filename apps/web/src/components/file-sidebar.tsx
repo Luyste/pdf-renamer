@@ -1,4 +1,4 @@
-import { Loader2, Plus } from 'lucide-react';
+import { CopyCheck, Loader2, Plus } from 'lucide-react';
 import { useCallback, useId, useState } from 'react';
 import {
   Sidebar,
@@ -86,6 +86,17 @@ export function FileSidebar({ entries, selectedId, onSelect, onFiles }: Props) {
                       <span className="truncate">
                         {entry.filename || entry.originalName}
                       </span>
+                      {entry.alreadyProcessed && (
+                        <span
+                          className="ml-auto shrink-0"
+                          title={t('alreadyProcessedBadge')}
+                        >
+                          <CopyCheck
+                            className="h-3.5 w-3.5 text-amber-600"
+                            aria-label={t('alreadyProcessedBadge')}
+                          />
+                        </span>
+                      )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );

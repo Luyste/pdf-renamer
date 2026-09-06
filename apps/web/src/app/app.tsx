@@ -1,4 +1,4 @@
-import type { ConfirmItem } from '@org/shared-types';
+import { type ConfirmItem, MAX_BATCH_SIZE } from '@org/shared-types';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Toaster, toast } from 'sonner';
 import { BatchFooter } from '@/components/batch-footer';
@@ -91,9 +91,25 @@ export function App() {
 
   const handleFiles = useCallback(
     async (files: File[]) => {
+      const remaining = MAX_BATCH_SIZE - Object.keys(entries).length;
+      if (remaining <= 0) {
+        toast.error(t('batchLimitReached', { max: MAX_BATCH_SIZE }));
+        return;
+      }
+      const toUpload = files.slice(0, remaining);
+      if (files.length > toUpload.length) {
+        toast.warning(
+          t('batchLimitTruncated', {
+            max: MAX_BATCH_SIZE,
+            accepted: toUpload.length,
+            skipped: files.length - toUpload.length,
+          }),
+        );
+      }
+
       const activeBatchId = batchId ?? crypto.randomUUID();
       if (!batchId) setBatchId(activeBatchId);
-      const uploaded = await uploadFiles(activeBatchId, files);
+      const uploaded = await uploadFiles(activeBatchId, toUpload);
 
       setEntries((prev) => {
         const next = { ...prev };
@@ -104,6 +120,7 @@ export function App() {
             status: 'parsing',
             result: null,
             filename: '',
+            alreadyProcessed: u.alreadyProcessed,
           };
         }
         return next;
@@ -130,7 +147,7 @@ export function App() {
         () => {},
       );
     },
-    [batchId],
+    [batchId, entries, t],
   );
 
   const handleFilenameChange = useCallback(
@@ -250,6 +267,13 @@ export function App() {
     toast.success(t('toastOriginalsDeleted'));
   }, [batchId, t]);
 
+  const handleBatchComplete = useCallback(() => {
+    setBatchId(null);
+    setEntries({});
+    setSelectedId(null);
+    clearSession();
+  }, []);
+
   const selected = selectedId ? entries[selectedId] : null;
 
   return (
@@ -294,6 +318,7 @@ export function App() {
               entries={entryList}
               onConfirmAll={handleConfirmAll}
               onDeleteOriginals={handleDeleteOriginals}
+              onBatchComplete={handleBatchComplete}
             />
           </div>
         </SidebarProvider>

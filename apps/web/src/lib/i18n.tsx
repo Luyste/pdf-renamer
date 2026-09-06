@@ -47,6 +47,13 @@ const translations = {
     delete: 'Törlés',
     toastDownloadStarted: 'Letöltés elindult',
     toastOriginalsDeleted: 'Eredeti fájlok törölve',
+    batchLimitReached:
+      'Elérte a köteg méretkorlátját — legfeljebb {{max}} fájl kötegenként.',
+    batchLimitTruncated:
+      'Csak {{accepted}} fájl lett hozzáadva (a köteg korlátja {{max}}). {{skipped}} fájl kimaradt.',
+    alreadyProcessedBadge: 'Már feldolgozva',
+    alreadyProcessedMessage:
+      'Ez a fájl korábban már fel lett dolgozva "{{filename}}" néven ({{date}}).',
   },
   en: {
     appTitle: 'PDF Renamer',
@@ -82,6 +89,12 @@ const translations = {
     delete: 'Delete',
     toastDownloadStarted: 'Download started',
     toastOriginalsDeleted: 'Originals deleted',
+    batchLimitReached: 'Batch limit reached — max {{max}} files per batch.',
+    batchLimitTruncated:
+      'Only {{accepted}} of the selected files were added (batch limit is {{max}}). {{skipped}} file(s) were skipped.',
+    alreadyProcessedBadge: 'Already processed',
+    alreadyProcessedMessage:
+      'This file was already processed before as "{{filename}}" ({{date}}).',
   },
 } as const;
 

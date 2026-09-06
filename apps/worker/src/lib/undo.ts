@@ -2,9 +2,6 @@ import { undoLogKey } from './keys';
 
 export type UndoEntry = {
   fileId: string;
-  from: string;
-  to: string;
-  originalName: string;
 };
 
 export async function appendUndoLog(

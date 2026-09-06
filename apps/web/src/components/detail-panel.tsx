@@ -1,5 +1,12 @@
 import type { Field } from '@org/shared-types';
-import { AlertTriangle, Check, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
+import {
+  AlertTriangle,
+  Check,
+  CopyCheck,
+  Loader2,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -89,6 +96,20 @@ export function DetailPanel({
         <div>
           <h2 className="text-lg font-semibold">{entry.originalName}</h2>
         </div>
+
+        {entry.alreadyProcessed && (
+          <div className="flex items-start gap-2 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+            <CopyCheck className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              {t('alreadyProcessedMessage', {
+                filename: entry.alreadyProcessed.filename,
+                date: new Date(
+                  entry.alreadyProcessed.confirmedAt,
+                ).toLocaleDateString(),
+              })}
+            </span>
+          </div>
+        )}
 
         {result ? (
           <div className="space-y-1 rounded border p-3">

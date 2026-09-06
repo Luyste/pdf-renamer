@@ -1,8 +1,20 @@
+import {
+  MAX_BATCH_SIZE,
+  type ProcessedRecord,
+  type UploadedFile,
+} from '@org/shared-types';
 import { Hono } from 'hono';
 import type { Env } from '../env';
-import { stagingKey } from '../lib/keys';
+import { processedKey, stagingKey, stagingPrefix } from '../lib/keys';
 
 export const upload = new Hono<{ Bindings: Env }>();
+
+async function sha256Hex(data: ArrayBuffer): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return [...new Uint8Array(digest)]
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 upload.post('/api/upload', async (c) => {
   const batchId = c.req.query('batchId');
@@ -12,18 +24,31 @@ upload.post('/api/upload', async (c) => {
   const files = ([] as File[]).concat((form.files ?? []) as File | File[]);
   if (files.length === 0) return c.json({ error: 'no files provided' }, 400);
 
-  const results: { fileId: string; originalName: string }[] = [];
+  const existing = await c.env.BUCKET.list({ prefix: stagingPrefix(batchId) });
+  if (existing.objects.length + files.length > MAX_BATCH_SIZE) {
+    return c.json(
+      {
+        error: `batch limit is ${MAX_BATCH_SIZE} files (already have ${existing.objects.length}, tried to add ${files.length})`,
+      },
+      400,
+    );
+  }
+
+  const results: UploadedFile[] = [];
   for (const file of files) {
     const fileId = crypto.randomUUID();
-    await c.env.BUCKET.put(
-      stagingKey(batchId, fileId),
-      await file.arrayBuffer(),
-      {
-        httpMetadata: { contentType: 'application/pdf' },
-        customMetadata: { originalName: file.name },
-      },
-    );
-    results.push({ fileId, originalName: file.name });
+    const bytes = await file.arrayBuffer();
+    const sha256 = await sha256Hex(bytes);
+
+    await c.env.BUCKET.put(stagingKey(batchId, fileId), bytes, {
+      httpMetadata: { contentType: 'application/pdf' },
+      customMetadata: { originalName: file.name, sha256 },
+    });
+
+    const prior = await c.env.BUCKET.get(processedKey(sha256));
+    const alreadyProcessed = prior ? await prior.json<ProcessedRecord>() : null;
+
+    results.push({ fileId, originalName: file.name, alreadyProcessed });
   }
 
   return c.json(results);

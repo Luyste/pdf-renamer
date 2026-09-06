@@ -1,6 +1,4 @@
-import type { ConfirmItem, ParseResult } from '@org/shared-types';
-
-export type UploadedFile = { fileId: string; originalName: string };
+import type { ConfirmItem, ParseResult, UploadedFile } from '@org/shared-types';
 
 export async function uploadFiles(
   batchId: string,

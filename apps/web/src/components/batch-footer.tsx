@@ -18,12 +18,14 @@ type Props = {
   entries: FileEntry[];
   onConfirmAll: () => Promise<void>;
   onDeleteOriginals: () => Promise<void>;
+  onBatchComplete: () => void;
 };
 
 export function BatchFooter({
   entries,
   onConfirmAll,
   onDeleteOriginals,
+  onBatchComplete,
 }: Props) {
   const { t } = useLanguage();
   const [alertOpen, setAlertOpen] = useState(false);
@@ -60,6 +62,12 @@ export function BatchFooter({
   const handleDelete = async () => {
     await onDeleteOriginals();
     setAlertOpen(false);
+    onBatchComplete();
+  };
+
+  const handleKeep = () => {
+    setAlertOpen(false);
+    onBatchComplete();
   };
 
   return (
@@ -115,7 +123,9 @@ export function BatchFooter({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('keep')}</AlertDialogCancel>
+            <AlertDialogCancel onClick={handleKeep}>
+              {t('keep')}
+            </AlertDialogCancel>
             <AlertDialogAction autoFocus onClick={handleDelete}>
               {t('delete')}
             </AlertDialogAction>

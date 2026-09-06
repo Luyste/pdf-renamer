@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import tempfile
 import traceback
@@ -37,9 +38,10 @@ async def parse(file: UploadFile = File(...)):
 
         roster = _load_roster()
         try:
-            result = extract.process(tmp_path, roster=roster)
+            result = await asyncio.to_thread(extract.process, tmp_path, roster)
             out = result.to_dict()
-            out["thumb"] = base64.b64encode(extract.page_png(tmp_path, dpi=110)).decode("ascii")
+            thumb = await asyncio.to_thread(extract.page_png, tmp_path, 110)
+            out["thumb"] = base64.b64encode(thumb).decode("ascii")
         except Exception as e:
             out = {
                 "source": file.filename or tmp_path.name,

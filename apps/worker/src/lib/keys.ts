@@ -6,37 +6,42 @@ export function stagingPrefix(batchId: string): string {
   return `staging/${batchId}/`;
 }
 
-export function doneKey(batchId: string, filename: string): string {
-  return `done/${batchId}/${filename}`;
+/** Small JSON pointer recording a file's outcome (status + final filename) —
+ * never the PDF bytes themselves. The PDF stays in its one staging/ copy. */
+export function metaKey(batchId: string, fileId: string): string {
+  return `meta/${batchId}/${fileId}.json`;
 }
 
-export function donePrefix(batchId: string): string {
-  return `done/${batchId}/`;
-}
-
-export function reviewPrefix(batchId: string): string {
-  return `review/${batchId}/`;
+export function metaPrefix(batchId: string): string {
+  return `meta/${batchId}/`;
 }
 
 export function undoLogKey(batchId: string): string {
   return `undo/${batchId}.jsonl`;
 }
 
-/** Find a non-colliding key under `prefix{name}`, appending _2, _3... before the extension. */
-export async function nextAvailableKey(
-  bucket: R2Bucket,
-  prefix: string,
+/** Cross-batch, content-hash-keyed record used only for "already processed"
+ * duplicate detection. Deliberately NOT deleted by batch cleanup. */
+export function processedKey(sha256: string): string {
+  return `processed/${sha256}.json`;
+}
+
+/** Pick a filename that doesn't collide with any name already used in this
+ * batch, appending _2, _3... before the extension. */
+export function nextAvailableName(
+  usedNames: Set<string>,
   name: string,
-): Promise<string> {
+): string {
+  if (!usedNames.has(name)) return name;
   const dot = name.lastIndexOf('.');
   const base = dot === -1 ? name : name.slice(0, dot);
   const ext = dot === -1 ? '' : name.slice(dot);
 
-  let candidate = `${prefix}${name}`;
   let n = 2;
-  while ((await bucket.head(candidate)) !== null) {
-    candidate = `${prefix}${base}_${n}${ext}`;
+  let candidate = `${base}_${n}${ext}`;
+  while (usedNames.has(candidate)) {
     n += 1;
+    candidate = `${base}_${n}${ext}`;
   }
   return candidate;
 }

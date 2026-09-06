@@ -1,3 +1,5 @@
+export const MAX_BATCH_SIZE = 50;
+
 export type Field = {
   value: string | null;
   raw: string;
@@ -22,4 +24,19 @@ export type ConfirmItem = {
   original: string;
   filename: string | null;
   skip?: boolean;
+};
+
+/** Cross-batch record proving a file (by content hash) was already
+ * confirmed once before — used to flag duplicate uploads. */
+export type ProcessedRecord = {
+  originalName: string;
+  filename: string;
+  batchId: string;
+  confirmedAt: string;
+};
+
+export type UploadedFile = {
+  fileId: string;
+  originalName: string;
+  alreadyProcessed: ProcessedRecord | null;
 };

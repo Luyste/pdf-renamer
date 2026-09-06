@@ -1,32 +1,50 @@
-import type { ConfirmItem } from '@org/shared-types';
+import type { ConfirmItem, ProcessedRecord } from '@org/shared-types';
 import { Hono } from 'hono';
 import type { Env } from '../env';
 import {
-  doneKey,
-  nextAvailableKey,
-  reviewPrefix,
+  metaKey,
+  metaPrefix,
+  nextAvailableName,
+  processedKey,
   stagingKey,
 } from '../lib/keys';
 import { appendUndoLog, type UndoEntry } from '../lib/undo';
 
 export const confirm = new Hono<{ Bindings: Env }>();
 
+type FileMeta = {
+  status: 'done' | 'review';
+  filename: string;
+  originalName: string;
+};
+
 confirm.post('/api/confirm', async (c) => {
   const body = await c.req.json<{ batchId: string; items: ConfirmItem[] }>();
   const { batchId, items } = body;
+
+  // Filenames already claimed by earlier confirms in this batch, so a
+  // repeat confirm call doesn't produce two "done" entries with the same name.
+  const existingMeta = await c.env.BUCKET.list({ prefix: metaPrefix(batchId) });
+  const usedNames = new Set<string>();
+  for (const object of existingMeta.objects) {
+    const obj = await c.env.BUCKET.get(object.key);
+    if (!obj) continue;
+    const meta = await obj.json<FileMeta>();
+    if (meta.status === 'done') usedNames.add(meta.filename);
+  }
 
   const undoEntries: UndoEntry[] = [];
   const results: {
     fileId: string;
     ok: boolean;
-    key?: string;
+    filename?: string;
     error?: string;
   }[] = [];
 
   for (const item of items) {
     const srcKey = stagingKey(batchId, item.token);
-    const obj = await c.env.BUCKET.get(srcKey);
-    if (!obj) {
+    const src = await c.env.BUCKET.head(srcKey);
+    if (!src) {
       results.push({
         fileId: item.token,
         ok: false,
@@ -35,27 +53,37 @@ confirm.post('/api/confirm', async (c) => {
       continue;
     }
 
-    const destKey =
-      item.skip || !item.filename
-        ? await nextAvailableKey(
-            c.env.BUCKET,
-            reviewPrefix(batchId),
-            item.original,
-          )
-        : doneKey(batchId, item.filename);
+    const isDone = !item.skip && !!item.filename;
+    const filename = isDone
+      ? nextAvailableName(usedNames, item.filename as string)
+      : item.original;
+    if (isDone) usedNames.add(filename);
 
-    await c.env.BUCKET.put(destKey, await obj.arrayBuffer(), {
-      httpMetadata: obj.httpMetadata,
-      customMetadata: obj.customMetadata,
-    });
-
-    undoEntries.push({
-      fileId: item.token,
-      from: srcKey,
-      to: destKey,
+    const meta: FileMeta = {
+      status: isDone ? 'done' : 'review',
+      filename,
       originalName: item.original,
+    };
+    await c.env.BUCKET.put(metaKey(batchId, item.token), JSON.stringify(meta), {
+      httpMetadata: { contentType: 'application/json' },
     });
-    results.push({ fileId: item.token, ok: true, key: destKey });
+
+    if (isDone && src.customMetadata?.sha256) {
+      const record: ProcessedRecord = {
+        originalName: item.original,
+        filename,
+        batchId,
+        confirmedAt: new Date().toISOString(),
+      };
+      await c.env.BUCKET.put(
+        processedKey(src.customMetadata.sha256),
+        JSON.stringify(record),
+        { httpMetadata: { contentType: 'application/json' } },
+      );
+    }
+
+    undoEntries.push({ fileId: item.token });
+    results.push({ fileId: item.token, ok: true, filename });
   }
 
   await appendUndoLog(c.env.BUCKET, batchId, undoEntries);
