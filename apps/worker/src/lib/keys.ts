@@ -16,6 +16,16 @@ export function metaPrefix(batchId: string): string {
   return `meta/${batchId}/`;
 }
 
+/** Cached OCR result (the same ParseResult sent over SSE), persisted so
+ * GET /api/batch/:id can rehydrate full state without re-running OCR. */
+export function parsedKey(batchId: string, fileId: string): string {
+  return `parsed/${batchId}/${fileId}.json`;
+}
+
+export function parsedPrefix(batchId: string): string {
+  return `parsed/${batchId}/`;
+}
+
 export function undoLogKey(batchId: string): string {
   return `undo/${batchId}.jsonl`;
 }

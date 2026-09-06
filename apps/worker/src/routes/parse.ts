@@ -2,7 +2,7 @@ import type { ParseResult } from '@org/shared-types';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import type { Env } from '../env';
-import { stagingPrefix } from '../lib/keys';
+import { parsedKey, stagingPrefix } from '../lib/keys';
 import { ocrParse } from '../lib/ocr-client';
 
 export const parse = new Hono<{ Bindings: Env }>();
@@ -44,6 +44,12 @@ parse.get('/api/parse', async (c) => {
         const body = await obj.arrayBuffer();
         const res = await ocrParse(c.env, originalName, body);
         const result = await res.json<ParseResult>();
+
+        await c.env.BUCKET.put(
+          parsedKey(batchId, fileId),
+          JSON.stringify(result),
+          { httpMetadata: { contentType: 'application/json' } },
+        );
 
         await stream.writeSSE({ data: JSON.stringify({ ...result, fileId }) });
       }

@@ -104,7 +104,7 @@ export function DetailPanel({
               {t('alreadyProcessedMessage', {
                 filename: entry.alreadyProcessed.filename,
                 date: new Date(
-                  entry.alreadyProcessed.confirmedAt,
+                  entry.alreadyProcessed.downloadedAt,
                 ).toLocaleDateString(),
               })}
             </span>

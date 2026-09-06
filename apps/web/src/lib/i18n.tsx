@@ -54,6 +54,20 @@ const translations = {
     alreadyProcessedBadge: 'Már feldolgozva',
     alreadyProcessedMessage:
       'Ez a fájl korábban már fel lett dolgozva "{{filename}}" néven ({{date}}).',
+    toastFileDeleted: 'Fájl törölve',
+    toastFilesDeleted: '{{count}} fájl törölve',
+    toastBatchCancelled: 'Köteg törölve',
+    sidebarSelectedCount: '{{count}} kijelölve',
+    sidebarDeleteSelected: 'Törlés',
+    sidebarClearSelection: 'Mégse',
+    deleteFileTitle: 'Törli ezt a fájlt?',
+    deleteFilesTitle: 'Törli a kijelölt {{count}} fájlt?',
+    deleteFilesDesc:
+      'A fájl(ok) véglegesen törlődnek a tárhelyről. Ez nem vonható vissza.',
+    cancelBatchButton: 'Köteg törlése',
+    cancelBatchTitle: 'Törli ezt a {{count}} fájlból álló köteget?',
+    cancelBatchDesc:
+      'Ez véglegesen törli az összes feltöltött fájlt letöltés nélkül. Ez nem vonható vissza.',
   },
   en: {
     appTitle: 'PDF Renamer',
@@ -95,6 +109,20 @@ const translations = {
     alreadyProcessedBadge: 'Already processed',
     alreadyProcessedMessage:
       'This file was already processed before as "{{filename}}" ({{date}}).',
+    toastFileDeleted: 'File deleted',
+    toastFilesDeleted: '{{count}} files deleted',
+    toastBatchCancelled: 'Batch deleted',
+    sidebarSelectedCount: '{{count}} selected',
+    sidebarDeleteSelected: 'Delete',
+    sidebarClearSelection: 'Clear',
+    deleteFileTitle: 'Delete this file?',
+    deleteFilesTitle: 'Delete {{count}} selected files?',
+    deleteFilesDesc:
+      'The file(s) will be permanently removed from storage. This cannot be undone.',
+    cancelBatchButton: 'Delete batch',
+    cancelBatchTitle: 'Delete this {{count}}-file batch?',
+    cancelBatchDesc:
+      'This permanently deletes every uploaded file without downloading anything. This cannot be undone.',
   },
 } as const;
 

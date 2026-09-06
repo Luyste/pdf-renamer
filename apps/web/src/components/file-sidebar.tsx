@@ -1,5 +1,16 @@
-import { CopyCheck, Loader2, Plus } from 'lucide-react';
-import { useCallback, useId, useState } from 'react';
+import type { FileEntry } from '@org/shared-types';
+import { Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Sidebar,
   SidebarContent,
@@ -7,43 +18,50 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { useLanguage } from '@/lib/i18n';
-import { type FileEntry, sortEntries, statusColor } from '@/lib/types';
-
-const DOT_CLASS: Record<string, string> = {
-  red: 'bg-destructive',
-  amber: 'bg-amber-500',
-  green: 'bg-emerald-500',
-};
+import { sortEntries } from '@/lib/types';
+import { FileSidebarAddFiles } from './file-sidebar-add-files';
+import { FileSidebarRow } from './file-sidebar-row';
+import { FileSidebarSelectionBar } from './file-sidebar-selection-bar';
 
 type Props = {
   entries: FileEntry[];
   selectedId: string | null;
   onSelect: (fileId: string) => void;
   onFiles: (files: File[]) => void;
+  onDeleteFile: (fileId: string) => void;
+  onDeleteFiles: (fileIds: string[]) => void;
 };
 
-export function FileSidebar({ entries, selectedId, onSelect, onFiles }: Props) {
+export function FileSidebar({
+  entries,
+  selectedId,
+  onSelect,
+  onFiles,
+  onDeleteFile,
+  onDeleteFiles,
+}: Props) {
   const { t } = useLanguage();
   const sorted = sortEntries(entries);
   const parsingCount = entries.filter((e) => e.status === 'parsing').length;
-  const [dragging, setDragging] = useState(false);
-  const inputId = useId();
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
-  const handleFileList = useCallback(
-    (list: FileList | null) => {
-      if (!list) return;
-      const pdfs = Array.from(list).filter(
-        (f) =>
-          f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'),
-      );
-      if (pdfs.length) onFiles(pdfs);
-    },
-    [onFiles],
-  );
+  const toggleChecked = (fileId: string, isChecked: boolean) => {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (isChecked) next.add(fileId);
+      else next.delete(fileId);
+      return next;
+    });
+  };
+
+  const confirmBulkDelete = () => {
+    onDeleteFiles([...checked]);
+    setChecked(new Set());
+    setBulkDeleteOpen(false);
+  };
 
   return (
     <Sidebar>
@@ -65,75 +83,51 @@ export function FileSidebar({ entries, selectedId, onSelect, onFiles }: Props) {
               <span className="ml-0.5">{t('sidebarNavigate')}</span>
             </span>
           </SidebarGroupLabel>
+
+          <FileSidebarAddFiles onFiles={onFiles} />
+
+          <FileSidebarSelectionBar
+            count={checked.size}
+            onClear={() => setChecked(new Set())}
+            onDelete={() => setBulkDeleteOpen(true)}
+          />
+
           <SidebarGroupContent>
             <SidebarMenu>
-              {sorted.map((entry) => {
-                const color = statusColor(entry);
-                const parsing = entry.status === 'parsing';
-                return (
-                  <SidebarMenuItem key={entry.fileId}>
-                    <SidebarMenuButton
-                      isActive={entry.fileId === selectedId}
-                      onClick={() => onSelect(entry.fileId)}
-                    >
-                      {parsing ? (
-                        <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
-                      ) : (
-                        <span
-                          className={`h-2 w-2 shrink-0 rounded-full ${DOT_CLASS[color]}`}
-                        />
-                      )}
-                      <span className="truncate">
-                        {entry.filename || entry.originalName}
-                      </span>
-                      {entry.alreadyProcessed && (
-                        <span
-                          className="ml-auto shrink-0"
-                          title={t('alreadyProcessedBadge')}
-                        >
-                          <CopyCheck
-                            className="h-3.5 w-3.5 text-amber-600"
-                            aria-label={t('alreadyProcessedBadge')}
-                          />
-                        </span>
-                      )}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+              {sorted.map((entry) => (
+                <FileSidebarRow
+                  key={entry.fileId}
+                  entry={entry}
+                  isSelected={entry.fileId === selectedId}
+                  isChecked={checked.has(entry.fileId)}
+                  onSelect={() => onSelect(entry.fileId)}
+                  onToggleChecked={(v) => toggleChecked(entry.fileId, v)}
+                  onDelete={() => onDeleteFile(entry.fileId)}
+                />
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <div className="p-2">
-        <label
-          htmlFor={inputId}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragging(true);
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragging(false);
-            handleFileList(e.dataTransfer.files);
-          }}
-          className={`flex cursor-pointer items-center justify-center gap-2 rounded-md border-2 border-dashed p-3 text-xs text-muted-foreground transition-colors ${
-            dragging ? 'border-primary bg-accent' : 'border-border'
-          }`}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          {t('sidebarAddFiles')}
-          <input
-            id={inputId}
-            type="file"
-            accept="application/pdf"
-            multiple
-            className="hidden"
-            onChange={(e) => handleFileList(e.target.files)}
-          />
-        </label>
-      </div>
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('deleteFilesTitle', { count: checked.size })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('deleteFilesDesc')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('sidebarClearSelection')}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBulkDelete}>
+              {t('sidebarDeleteSelected')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sidebar>
   );
 }

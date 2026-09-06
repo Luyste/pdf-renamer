@@ -18,6 +18,7 @@ type Props = {
   entries: FileEntry[];
   onConfirmAll: () => Promise<void>;
   onDeleteOriginals: () => Promise<void>;
+  onCancelBatch: () => Promise<void>;
   onBatchComplete: () => void;
 };
 
@@ -25,11 +26,13 @@ export function BatchFooter({
   entries,
   onConfirmAll,
   onDeleteOriginals,
+  onCancelBatch,
   onBatchComplete,
 }: Props) {
   const { t } = useLanguage();
   const [alertOpen, setAlertOpen] = useState(false);
   const [parsingWarningOpen, setParsingWarningOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const ready = entries.filter((e) => e.result?.confident).length;
@@ -70,6 +73,16 @@ export function BatchFooter({
     onBatchComplete();
   };
 
+  const handleCancelBatch = async () => {
+    setBusy(true);
+    try {
+      await onCancelBatch();
+      setCancelOpen(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="flex items-center justify-between gap-4 border-t bg-background px-6 py-3">
       <span className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -83,12 +96,38 @@ export function BatchFooter({
       </span>
       <div className="flex gap-2">
         <Button
+          variant="outline"
+          onClick={() => setCancelOpen(true)}
+          disabled={busy || entries.length === 0}
+        >
+          {t('cancelBatchButton')}
+        </Button>
+        <Button
           onClick={handleConfirmAllClick}
           disabled={busy || entries.length === 0}
         >
           {t('footerConfirmAll')}
         </Button>
       </div>
+
+      <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('cancelBatchTitle', { count: entries.length })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('cancelBatchDesc')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('keep')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCancelBatch}>
+              {t('cancelBatchButton')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={parsingWarningOpen}

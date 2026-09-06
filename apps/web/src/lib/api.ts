@@ -1,4 +1,23 @@
-import type { ConfirmItem, ParseResult, UploadedFile } from '@org/shared-types';
+import type {
+  BatchState,
+  ConfirmItem,
+  ParseResult,
+  UploadedFile,
+} from '@org/shared-types';
+
+export async function fetchBatchState(batchId: string): Promise<BatchState> {
+  const res = await fetch(`/api/batch/${encodeURIComponent(batchId)}`);
+  if (!res.ok) throw new Error(`fetch batch failed: ${res.status}`);
+  return res.json();
+}
+
+export async function deleteFile(batchId: string, fileId: string) {
+  const res = await fetch(
+    `/api/batch/${encodeURIComponent(batchId)}/files/${encodeURIComponent(fileId)}`,
+    { method: 'DELETE' },
+  );
+  if (!res.ok) throw new Error(`delete file failed: ${res.status}`);
+}
 
 export async function uploadFiles(
   batchId: string,

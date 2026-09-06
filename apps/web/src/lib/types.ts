@@ -1,15 +1,6 @@
-import type { ParseResult, ProcessedRecord } from '@org/shared-types';
+import type { FileEntry } from '@org/shared-types';
 
-export type FileStatus = 'parsing' | 'parsed' | 'confirmed' | 'skipped';
-
-export type FileEntry = {
-  fileId: string;
-  originalName: string;
-  status: FileStatus;
-  result: ParseResult | null;
-  filename: string;
-  alreadyProcessed: ProcessedRecord | null;
-};
+export type { FileEntry, FileStatus } from '@org/shared-types';
 
 export type StatusColor = 'red' | 'amber' | 'green';
 

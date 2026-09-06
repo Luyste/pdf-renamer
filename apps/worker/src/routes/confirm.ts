@@ -1,11 +1,10 @@
-import type { ConfirmItem, ProcessedRecord } from '@org/shared-types';
+import type { ConfirmItem } from '@org/shared-types';
 import { Hono } from 'hono';
 import type { Env } from '../env';
 import {
   metaKey,
   metaPrefix,
   nextAvailableName,
-  processedKey,
   stagingKey,
 } from '../lib/keys';
 import { appendUndoLog, type UndoEntry } from '../lib/undo';
@@ -67,20 +66,6 @@ confirm.post('/api/confirm', async (c) => {
     await c.env.BUCKET.put(metaKey(batchId, item.token), JSON.stringify(meta), {
       httpMetadata: { contentType: 'application/json' },
     });
-
-    if (isDone && src.customMetadata?.sha256) {
-      const record: ProcessedRecord = {
-        originalName: item.original,
-        filename,
-        batchId,
-        confirmedAt: new Date().toISOString(),
-      };
-      await c.env.BUCKET.put(
-        processedKey(src.customMetadata.sha256),
-        JSON.stringify(record),
-        { httpMetadata: { contentType: 'application/json' } },
-      );
-    }
 
     undoEntries.push({ fileId: item.token });
     results.push({ fileId: item.token, ok: true, filename });

@@ -1,7 +1,8 @@
+import type { ProcessedRecord } from '@org/shared-types';
 import { downloadZip } from 'client-zip';
 import { Hono } from 'hono';
 import type { Env } from '../env';
-import { metaPrefix, stagingKey } from '../lib/keys';
+import { metaPrefix, processedKey, stagingKey } from '../lib/keys';
 
 export const download = new Hono<{ Bindings: Env }>();
 
@@ -29,6 +30,22 @@ download.get('/api/download', async (c) => {
       const fileId = object.key.slice(prefix.length).replace(/\.json$/, '');
       const pdf = await c.env.BUCKET.get(stagingKey(batchId, fileId));
       if (!pdf?.body) return null;
+
+      // Only now — actually zipped and about to be handed to the user —
+      // does this file count as "processed" for cross-batch dedupe.
+      if (pdf.customMetadata?.sha256) {
+        const record: ProcessedRecord = {
+          originalName: meta.originalName,
+          filename: meta.filename,
+          batchId,
+          downloadedAt: new Date().toISOString(),
+        };
+        await c.env.BUCKET.put(
+          processedKey(pdf.customMetadata.sha256),
+          JSON.stringify(record),
+          { httpMetadata: { contentType: 'application/json' } },
+        );
+      }
 
       return {
         name: meta.filename,
