@@ -1,11 +1,11 @@
 import type { ParseResult } from '@org/shared-types';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import type { Env } from '../env';
+import type { AppBindings } from '../env';
 import { parsedKey, stagingPrefix } from '../lib/keys';
 import { ocrParse } from '../lib/ocr-client';
 
-export const parse = new Hono<{ Bindings: Env }>();
+export const parse = new Hono<AppBindings>();
 
 // The OCR container is CPU-bound (Tesseract subprocess per page), so this
 // caps how many requests are in flight at once rather than firing all of
@@ -16,6 +16,8 @@ parse.get('/api/parse', async (c) => {
   const batchId = c.req.query('batchId');
   if (!batchId) return c.json({ error: 'batchId query param required' }, 400);
 
+  const requestId = c.get('requestId');
+  const logger = c.get('logger');
   const fileIdsParam = c.req.query('fileIds');
   const fileIdFilter = fileIdsParam ? new Set(fileIdsParam.split(',')) : null;
 
@@ -27,6 +29,8 @@ parse.get('/api/parse', async (c) => {
       .replace(/\.pdf$/, '');
     return fileIdFilter.has(fileId);
   });
+
+  logger.info('parse.batch_start', { batchId, count: objects.length });
 
   return streamSSE(c, async (stream) => {
     let next = 0;
@@ -42,8 +46,16 @@ parse.get('/api/parse', async (c) => {
         const originalName =
           obj.customMetadata?.originalName ?? `${fileId}.pdf`;
         const body = await obj.arrayBuffer();
-        const res = await ocrParse(c.env, originalName, body);
+        const res = await ocrParse(c.env, originalName, body, requestId);
         const result = await res.json<ParseResult>();
+
+        if (result.problems.length > 0) {
+          logger.warn('parse.file_had_problems', {
+            batchId,
+            fileId,
+            problems: result.problems,
+          });
+        }
 
         await c.env.BUCKET.put(
           parsedKey(batchId, fileId),
@@ -60,6 +72,7 @@ parse.get('/api/parse', async (c) => {
         worker(),
       ),
     );
+    logger.info('parse.batch_done', { batchId, count: objects.length });
     await stream.writeSSE({ data: JSON.stringify({ done: true }) });
   });
 });

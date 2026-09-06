@@ -6,7 +6,7 @@ import type {
   ProcessedRecord,
 } from '@org/shared-types';
 import { Hono } from 'hono';
-import type { Env } from '../env';
+import type { AppBindings } from '../env';
 import {
   metaKey,
   metaPrefix,
@@ -18,7 +18,7 @@ import {
   undoLogKey,
 } from '../lib/keys';
 
-export const batch = new Hono<{ Bindings: Env }>();
+export const batch = new Hono<AppBindings>();
 
 type FileMeta = {
   status: 'done' | 'review';
@@ -86,6 +86,7 @@ batch.delete('/api/batch/:batchId/files/:fileId', async (c) => {
   await c.env.BUCKET.delete(stagingKey(batchId, fileId));
   await c.env.BUCKET.delete(parsedKey(batchId, fileId));
   await c.env.BUCKET.delete(metaKey(batchId, fileId));
+  c.get('logger').info('batch.file_deleted', { batchId, fileId });
   return c.json({ deleted: true });
 });
 
@@ -98,5 +99,6 @@ batch.delete('/api/batch/:batchId', async (c) => {
   await deletePrefix(c.env.BUCKET, parsedPrefix(batchId));
   await deletePrefix(c.env.BUCKET, metaPrefix(batchId));
   await c.env.BUCKET.delete(undoLogKey(batchId));
+  c.get('logger').info('batch.deleted', { batchId });
   return c.json({ deleted: true });
 });

@@ -1,6 +1,6 @@
 import type { ConfirmItem } from '@org/shared-types';
 import { Hono } from 'hono';
-import type { Env } from '../env';
+import type { AppBindings } from '../env';
 import {
   metaKey,
   metaPrefix,
@@ -9,7 +9,7 @@ import {
 } from '../lib/keys';
 import { appendUndoLog, type UndoEntry } from '../lib/undo';
 
-export const confirm = new Hono<{ Bindings: Env }>();
+export const confirm = new Hono<AppBindings>();
 
 type FileMeta = {
   status: 'done' | 'review';
@@ -72,6 +72,13 @@ confirm.post('/api/confirm', async (c) => {
   }
 
   await appendUndoLog(c.env.BUCKET, batchId, undoEntries);
+
+  c.get('logger').info('confirm.completed', {
+    batchId,
+    total: items.length,
+    done: results.filter((r) => r.ok && r.filename).length,
+    failed: results.filter((r) => !r.ok).length,
+  });
 
   return c.json({ results });
 });

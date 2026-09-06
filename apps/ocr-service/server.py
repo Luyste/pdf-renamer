@@ -8,10 +8,13 @@ import tempfile
 import traceback
 from pathlib import Path
 
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.responses import JSONResponse
 
 import extract
+from logging_setup import configure_logging, get_logger
+
+configure_logging()
 
 app = FastAPI()
 
@@ -29,7 +32,10 @@ def _load_roster() -> list[str]:
 
 
 @app.post("/parse")
-async def parse(file: UploadFile = File(...)):
+async def parse(request: Request, file: UploadFile = File(...)):
+    log = get_logger(request.headers.get("x-request-id"))
+    log.info(f"parse.start filename={file.filename!r}")
+
     tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
     tmp_path = Path(tmp.name)
     try:
@@ -42,7 +48,12 @@ async def parse(file: UploadFile = File(...)):
             out = result.to_dict()
             thumb = await asyncio.to_thread(extract.page_png, tmp_path, 110)
             out["thumb"] = base64.b64encode(thumb).decode("ascii")
+            log.info(
+                f"parse.done confident={out['confident']} "
+                f"problems={len(out['problems'])}"
+            )
         except Exception as e:
+            log.error(f"parse.failed error={type(e).__name__}: {e}", exc_info=True)
             out = {
                 "source": file.filename or tmp_path.name,
                 "filename": None,
@@ -58,5 +69,8 @@ async def parse(file: UploadFile = File(...)):
 
 
 @app.get("/health")
-async def health():
-    return {"ocr_lang": extract.ocr_lang()}
+async def health(request: Request):
+    log = get_logger(request.headers.get("x-request-id"))
+    lang = extract.ocr_lang()
+    log.info(f"health.checked ocr_lang={lang}")
+    return {"ocr_lang": lang}

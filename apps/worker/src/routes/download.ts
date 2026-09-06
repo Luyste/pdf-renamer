@@ -1,10 +1,10 @@
 import type { ProcessedRecord } from '@org/shared-types';
 import { downloadZip } from 'client-zip';
 import { Hono } from 'hono';
-import type { Env } from '../env';
+import type { AppBindings } from '../env';
 import { metaPrefix, processedKey, stagingKey } from '../lib/keys';
 
-export const download = new Hono<{ Bindings: Env }>();
+export const download = new Hono<AppBindings>();
 
 type FileMeta = {
   status: 'done' | 'review';
@@ -55,6 +55,11 @@ download.get('/api/download', async (c) => {
     }),
   );
   const inputs = resolved.filter((entry): entry is ZipInput => entry !== null);
+
+  c.get('logger').info('download.zip_built', {
+    batchId,
+    fileCount: inputs.length,
+  });
 
   const zipResponse = downloadZip(inputs);
   return new Response(zipResponse.body, {

@@ -4,10 +4,10 @@ import {
   type UploadedFile,
 } from '@org/shared-types';
 import { Hono } from 'hono';
-import type { Env } from '../env';
+import type { AppBindings } from '../env';
 import { processedKey, stagingKey, stagingPrefix } from '../lib/keys';
 
-export const upload = new Hono<{ Bindings: Env }>();
+export const upload = new Hono<AppBindings>();
 
 async function sha256Hex(data: ArrayBuffer): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', data);
@@ -26,6 +26,11 @@ upload.post('/api/upload', async (c) => {
 
   const existing = await c.env.BUCKET.list({ prefix: stagingPrefix(batchId) });
   if (existing.objects.length + files.length > MAX_BATCH_SIZE) {
+    c.get('logger').warn('upload.batch_limit_rejected', {
+      batchId,
+      existing: existing.objects.length,
+      attempted: files.length,
+    });
     return c.json(
       {
         error: `batch limit is ${MAX_BATCH_SIZE} files (already have ${existing.objects.length}, tried to add ${files.length})`,
@@ -50,6 +55,12 @@ upload.post('/api/upload', async (c) => {
 
     results.push({ fileId, originalName: file.name, alreadyProcessed });
   }
+
+  c.get('logger').info('upload.completed', {
+    batchId,
+    count: results.length,
+    duplicates: results.filter((r) => r.alreadyProcessed).length,
+  });
 
   return c.json(results);
 });

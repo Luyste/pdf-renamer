@@ -8,7 +8,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY extract.py roster.txt server.py .
+COPY extract.py roster.txt server.py logging_setup.py .
 
 EXPOSE 8080
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8080"]

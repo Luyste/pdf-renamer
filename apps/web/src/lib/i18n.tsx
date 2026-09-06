@@ -68,6 +68,7 @@ const translations = {
     cancelBatchTitle: 'Törli ezt a {{count}} fájlból álló köteget?',
     cancelBatchDesc:
       'Ez véglegesen törli az összes feltöltött fájlt letöltés nélkül. Ez nem vonható vissza.',
+    toastUnexpectedError: 'Hiba történt (hiv. szám: {{ref}})',
   },
   en: {
     appTitle: 'PDF Renamer',
@@ -123,6 +124,7 @@ const translations = {
     cancelBatchTitle: 'Delete this {{count}}-file batch?',
     cancelBatchDesc:
       'This permanently deletes every uploaded file without downloading anything. This cannot be undone.',
+    toastUnexpectedError: 'Something went wrong (ref: {{ref}})',
   },
 } as const;
 
@@ -143,6 +145,16 @@ function readStoredLang(): Lang {
     // storage unavailable — fall through to default
   }
   return 'hu';
+}
+
+/** Translate outside a React tree (e.g. a global window error handler
+ * that fires before/outside any component). Reads the same stored
+ * language preference as LanguageProvider. */
+export function translateOutsideReact(
+  key: TranslationKey,
+  vars?: Record<string, string | number>,
+): string {
+  return interpolate(translations[readStoredLang()][key], vars);
 }
 
 type LanguageContextValue = {

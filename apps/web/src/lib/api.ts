@@ -4,19 +4,18 @@ import type {
   ParseResult,
   UploadedFile,
 } from '@org/shared-types';
+import { apiFetch } from './http';
 
 export async function fetchBatchState(batchId: string): Promise<BatchState> {
-  const res = await fetch(`/api/batch/${encodeURIComponent(batchId)}`);
-  if (!res.ok) throw new Error(`fetch batch failed: ${res.status}`);
+  const res = await apiFetch(`/api/batch/${encodeURIComponent(batchId)}`);
   return res.json();
 }
 
 export async function deleteFile(batchId: string, fileId: string) {
-  const res = await fetch(
+  await apiFetch(
     `/api/batch/${encodeURIComponent(batchId)}/files/${encodeURIComponent(fileId)}`,
     { method: 'DELETE' },
   );
-  if (!res.ok) throw new Error(`delete file failed: ${res.status}`);
 }
 
 export async function uploadFiles(
@@ -25,14 +24,10 @@ export async function uploadFiles(
 ): Promise<UploadedFile[]> {
   const form = new FormData();
   for (const f of files) form.append('files', f);
-  const res = await fetch(
+  const res = await apiFetch(
     `/api/upload?batchId=${encodeURIComponent(batchId)}`,
-    {
-      method: 'POST',
-      body: form,
-    },
+    { method: 'POST', body: form },
   );
-  if (!res.ok) throw new Error(`upload failed: ${res.status}`);
   return res.json();
 }
 
@@ -42,7 +37,14 @@ export function subscribeToParse(
   onResult: (r: ParseResult & { fileId: string }) => void,
   onDone: () => void,
 ) {
-  const params = new URLSearchParams({ batchId, fileIds: fileIds.join(',') });
+  // EventSource can't set custom headers, so the correlation id rides
+  // along as a query param instead — the worker's request-logging
+  // middleware accepts either.
+  const params = new URLSearchParams({
+    batchId,
+    fileIds: fileIds.join(','),
+    requestId: crypto.randomUUID(),
+  });
   const source = new EventSource(`/api/parse?${params.toString()}`);
   source.onmessage = (ev) => {
     const data = JSON.parse(ev.data);
@@ -61,42 +63,50 @@ export function subscribeToParse(
 }
 
 export async function confirmBatch(batchId: string, items: ConfirmItem[]) {
-  const res = await fetch('/api/confirm', {
+  const res = await apiFetch('/api/confirm', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ batchId, items }),
   });
-  if (!res.ok) throw new Error(`confirm failed: ${res.status}`);
   return res.json();
 }
 
 export async function downloadBatch(batchId: string): Promise<Blob> {
-  const res = await fetch(
+  const res = await apiFetch(
     `/api/download?batchId=${encodeURIComponent(batchId)}`,
   );
-  if (!res.ok) throw new Error(`download failed: ${res.status}`);
   return res.blob();
 }
 
 export async function deleteBatch(batchId: string) {
-  const res = await fetch(`/api/batch/${encodeURIComponent(batchId)}`, {
+  await apiFetch(`/api/batch/${encodeURIComponent(batchId)}`, {
     method: 'DELETE',
   });
-  if (!res.ok) throw new Error(`delete failed: ${res.status}`);
 }
 
 export async function undoBatch(batchId: string) {
-  const res = await fetch('/api/undo', {
+  const res = await apiFetch('/api/undo', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ batchId }),
   });
-  if (!res.ok) throw new Error(`undo failed: ${res.status}`);
   return res.json();
 }
 
 export async function fetchHealth(): Promise<{ ocr_lang: string }> {
-  const res = await fetch('/api/health');
-  if (!res.ok) throw new Error(`health failed: ${res.status}`);
+  const res = await apiFetch('/api/health');
   return res.json();
+}
+
+export function reportClientLog(
+  level: 'info' | 'warn' | 'error',
+  msg: string,
+  context?: Record<string, unknown>,
+) {
+  // Fire-and-forget — logging must never itself throw or block the UI.
+  apiFetch('/api/client-log', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ level, msg, context }),
+  }).catch(() => {});
 }

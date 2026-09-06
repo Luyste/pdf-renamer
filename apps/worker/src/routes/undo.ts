@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
-import type { Env } from '../env';
+import type { AppBindings } from '../env';
 import { metaKey } from '../lib/keys';
 import { clearUndoLog, readUndoLog } from '../lib/undo';
 
-export const undo = new Hono<{ Bindings: Env }>();
+export const undo = new Hono<AppBindings>();
 
 undo.post('/api/undo', async (c) => {
   const { batchId } = await c.req.json<{ batchId: string }>();
@@ -18,6 +18,8 @@ undo.post('/api/undo', async (c) => {
   }
 
   await clearUndoLog(c.env.BUCKET, batchId);
+
+  c.get('logger').info('undo.completed', { batchId, restored });
 
   return c.json({ restored });
 });
