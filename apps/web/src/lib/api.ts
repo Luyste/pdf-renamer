@@ -84,15 +84,6 @@ export async function deleteBatch(batchId: string) {
   });
 }
 
-export async function undoBatch(batchId: string) {
-  const res = await apiFetch('/api/undo', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ batchId }),
-  });
-  return res.json();
-}
-
 export async function fetchHealth(): Promise<{ ocr_lang: string }> {
   const res = await apiFetch('/api/health');
   return res.json();

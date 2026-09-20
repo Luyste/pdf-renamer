@@ -15,7 +15,6 @@ import {
   processedKey,
   stagingKey,
   stagingPrefix,
-  undoLogKey,
 } from '../lib/keys';
 
 export const batch = new Hono<AppBindings>();
@@ -98,7 +97,6 @@ batch.delete('/api/batch/:batchId', async (c) => {
   await deletePrefix(c.env.BUCKET, stagingPrefix(batchId));
   await deletePrefix(c.env.BUCKET, parsedPrefix(batchId));
   await deletePrefix(c.env.BUCKET, metaPrefix(batchId));
-  await c.env.BUCKET.delete(undoLogKey(batchId));
   c.get('logger').info('batch.deleted', { batchId });
   return c.json({ deleted: true });
 });

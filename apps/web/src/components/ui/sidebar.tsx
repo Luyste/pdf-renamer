@@ -4,7 +4,6 @@ import { Slot } from 'radix-ui';
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 import {
   Sheet,
   SheetContent,
@@ -12,7 +11,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip,
   TooltipContent,
@@ -347,20 +345,6 @@ function SidebarFooter({ className, ...props }: React.ComponentProps<'div'>) {
   );
 }
 
-function SidebarSeparator({
-  className,
-  ...props
-}: React.ComponentProps<typeof Separator>) {
-  return (
-    <Separator
-      data-slot="sidebar-separator"
-      data-sidebar="separator"
-      className={cn('mx-2 w-auto bg-sidebar-border', className)}
-      {...props}
-    />
-  );
-}
-
 function SidebarContent({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
@@ -577,44 +561,6 @@ function SidebarMenuBadge({
   );
 }
 
-function SidebarMenuSkeleton({
-  className,
-  showIcon = false,
-  ...props
-}: React.ComponentProps<'div'> & {
-  showIcon?: boolean;
-}) {
-  // Random width between 50 to 90%.
-  const [width] = React.useState(() => {
-    return `${Math.floor(Math.random() * 40) + 50}%`;
-  });
-
-  return (
-    <div
-      data-slot="sidebar-menu-skeleton"
-      data-sidebar="menu-skeleton"
-      className={cn('flex h-8 items-center gap-2 rounded-md px-2', className)}
-      {...props}
-    >
-      {showIcon && (
-        <Skeleton
-          className="size-4 rounded-md"
-          data-sidebar="menu-skeleton-icon"
-        />
-      )}
-      <Skeleton
-        className="h-4 max-w-(--skeleton-width) flex-1"
-        data-sidebar="menu-skeleton-text"
-        style={
-          {
-            '--skeleton-width': width,
-          } as React.CSSProperties
-        }
-      />
-    </div>
-  );
-}
-
 function SidebarMenuSub({ className, ...props }: React.ComponentProps<'ul'>) {
   return (
     <ul
@@ -687,13 +633,11 @@ export {
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSkeleton,
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarProvider,
   SidebarRail,
-  SidebarSeparator,
   SidebarTrigger,
   useSidebar,
 };

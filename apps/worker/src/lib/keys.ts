@@ -26,10 +26,6 @@ export function parsedPrefix(batchId: string): string {
   return `parsed/${batchId}/`;
 }
 
-export function undoLogKey(batchId: string): string {
-  return `undo/${batchId}.jsonl`;
-}
-
 /** Cross-batch, content-hash-keyed record used only for "already processed"
  * duplicate detection. Deliberately NOT deleted by batch cleanup. */
 export function processedKey(sha256: string): string {

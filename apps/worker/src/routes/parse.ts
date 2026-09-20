@@ -12,6 +12,27 @@ export const parse = new Hono<AppBindings>();
 // them at the container simultaneously.
 const PARSE_CONCURRENCY = 4;
 
+/** Stand-in result for a file the OCR service never managed to parse, so the
+ * UI can move it out of "parsing" and show why instead of spinning forever. */
+function failedResult(
+  fileId: string,
+  originalName: string,
+  message: string,
+): ParseResult & { fileId: string } {
+  const empty = { value: null, raw: '', ok: false, note: message };
+  return {
+    fileId,
+    source: originalName,
+    invoice: empty,
+    fulfil_date: empty,
+    customer: empty,
+    filename: null,
+    problems: [message],
+    confident: false,
+    ocr_dump: {},
+  };
+}
+
 parse.get('/api/parse', async (c) => {
   const batchId = c.req.query('batchId');
   if (!batchId) return c.json({ error: 'batchId query param required' }, 400);
@@ -40,30 +61,47 @@ parse.get('/api/parse', async (c) => {
         const fileId = object.key
           .slice(stagingPrefix(batchId).length)
           .replace(/\.pdf$/, '');
-        const obj = await c.env.BUCKET.get(object.key);
-        if (!obj) continue;
+        let originalName = `${fileId}.pdf`;
 
-        const originalName =
-          obj.customMetadata?.originalName ?? `${fileId}.pdf`;
-        const body = await obj.arrayBuffer();
-        const res = await ocrParse(c.env, originalName, body, requestId);
-        const result = await res.json<ParseResult>();
+        try {
+          const obj = await c.env.BUCKET.get(object.key);
+          if (!obj) throw new Error('staging object not found');
 
-        if (result.problems.length > 0) {
-          logger.warn('parse.file_had_problems', {
-            batchId,
-            fileId,
-            problems: result.problems,
+          originalName = obj.customMetadata?.originalName ?? originalName;
+          const body = await obj.arrayBuffer();
+          const res = await ocrParse(c.env, originalName, body, requestId);
+          if (!res.ok) {
+            throw new Error(`ocr-service returned ${res.status}`);
+          }
+          const result = await res.json<ParseResult>();
+
+          if (result.problems.length > 0) {
+            logger.warn('parse.file_had_problems', {
+              batchId,
+              fileId,
+              problems: result.problems,
+            });
+          }
+
+          await c.env.BUCKET.put(
+            parsedKey(batchId, fileId),
+            JSON.stringify(result),
+            { httpMetadata: { contentType: 'application/json' } },
+          );
+
+          await stream.writeSSE({
+            data: JSON.stringify({ ...result, fileId }),
+          });
+        } catch (err) {
+          // One file failing must not take the whole stream (and every other
+          // file's result) down with it. Report it and keep going. Nothing is
+          // written to parsed/, so a page reload retries this file.
+          const message = err instanceof Error ? err.message : String(err);
+          logger.error('parse.file_failed', { batchId, fileId, message });
+          await stream.writeSSE({
+            data: JSON.stringify(failedResult(fileId, originalName, message)),
           });
         }
-
-        await c.env.BUCKET.put(
-          parsedKey(batchId, fileId),
-          JSON.stringify(result),
-          { httpMetadata: { contentType: 'application/json' } },
-        );
-
-        await stream.writeSSE({ data: JSON.stringify({ ...result, fileId }) });
       }
     };
 

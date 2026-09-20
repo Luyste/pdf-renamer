@@ -16,10 +16,9 @@ bucket_name = "renamer-storage"
 # else is a small JSON pointer, never a duplicate copy of the file:
 #   staging/{batchId}/{fileId}.pdf   — the only copy of the actual PDF bytes
 #   meta/{batchId}/{fileId}.json     — {status: done|review, filename, originalName}
-#   undo/{batchId}.jsonl             — undo log (just fileIds, no bytes)
 #   processed/{sha256}.json          — cross-batch "already processed" record
 #
-# R2 lifecycle rules (staging/, meta/, and undo/ expire after 30 days;
+# R2 lifecycle rules (staging/ and meta/ expire after 30 days;
 # processed/ is long-lived — 180 days — since its entire purpose is to
 # outlive any one batch) are not expressible in wrangler.toml — configure
 # them once with:
@@ -28,13 +27,11 @@ bucket_name = "renamer-storage"
 #   wrangler r2 bucket lifecycle add renamer-storage \
 #     --prefix meta/ --expire-days 30
 #   wrangler r2 bucket lifecycle add renamer-storage \
-#     --prefix undo/ --expire-days 30
-#   wrangler r2 bucket lifecycle add renamer-storage \
 #     --prefix processed/ --expire-days 180
 #
 # These are a safety net for batches nobody explicitly deletes — DELETE
-# /api/batch/:batchId (see routes/batch.ts) removes staging/, meta/, and the
-# undo log for a batch immediately when the user confirms cleanup in the UI.
+# /api/batch/:batchId (see routes/batch.ts) removes staging/ and meta/ for a
+# batch immediately when the user confirms cleanup in the UI.
 # processed/ is deliberately left alone by that endpoint too.
 
 [[containers]]

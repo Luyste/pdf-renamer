@@ -14,8 +14,8 @@ low volume (tens of files per session, a few sessions a month).
 - **Package manager:** Bun (`create-nx-workspace --packageManager=bun`)
 - **Python integration:** `@nxlv/python` Nx plugin (uv-backed), NOT poetry
 - **Backend/API:** Hono, deployed as a Cloudflare Worker
-- **Frontend:** React + Vite, shadcn/ui components (Sidebar, Dialog, AlertDialog,
-  Badge, Input, Button), deployed as Worker static assets
+- **Frontend:** React + Vite, shadcn/ui components (Sidebar, AlertDialog,
+  Input, Button), deployed as Worker static assets
 - **OCR pipeline:** Python (PyMuPDF + Tesseract via subprocess), wrapped in FastAPI,
   deployed as a Cloudflare Container (Dockerfile), invoked by the Worker
 - **Storage:** Cloudflare R2
@@ -46,8 +46,9 @@ renamer/
    community Worker generator if available, otherwise a plain Nx `node` application
    type with `wrangler` as the dev/deploy executor — see "Worker app" section below).
 5. Scaffold `apps/web` as an `@nx/react` (Vite) application. Initialize shadcn/ui
-   inside it (`bunx shadcn@latest init`) and add components: `sidebar`, `dialog`,
-   `alert-dialog`, `badge`, `input`, `button`, `sonner` (toast for confirmations).
+   inside it (`bunx shadcn@latest init`) and add components: `sidebar`,
+   `alert-dialog`, `input`, `button`. Toasts come from the `sonner` package
+   directly (`import { Toaster } from 'sonner'`), no shadcn wrapper needed.
 6. Create `libs/shared-types` as a plain TS library (`bunx nx g @nx/js:lib shared-types`).
 
 ## `apps/ocr-service` — Python pipeline
@@ -520,10 +521,8 @@ Required routes:
 - `POST /api/confirm` — body: `{ batchId, items: ConfirmItem[] }`. For each
   item: if `skip` or no `filename`, copy the R2 object to
   `review/{batchId}/{originalName}` (never overwrite — append `_2`, `_3`...
-  on collision); otherwise copy to `done/{batchId}/{filename}`. Append one
-  line per item to an R2-stored `undo.jsonl` log (or a small KV/D1 record —
-  your choice, but it must be queryable by `batchId`). Return per-item
-  results.
+  on collision); otherwise copy to `done/{batchId}/{filename}`. Return
+  per-item results.
 - `GET /api/download?batchId=...` — stream a ZIP of everything under
   `done/{batchId}/` back to the browser. Build the ZIP in the Worker
   (streaming from R2), not in the Container.
@@ -531,8 +530,6 @@ Required routes:
   `staging/{batchId}/` and `done/{batchId}/`. This is the "delete originals"
   confirmation prompt action, called only after the browser confirms the ZIP
   download succeeded.
-- `POST /api/undo` — reverse the most recent confirm batch: move objects in
-  `done/` or `review/` for that batch back to `staging/`, using the undo log.
 - `GET /api/health` — proxy `ocr-service`'s `/health` so the frontend can
   show an OCR-language warning banner.
 
@@ -572,13 +569,13 @@ list incrementally as SSE messages arrive.
 
 **Sidebar**: one row per file, sorted by status — red (no filename produced)
 first, amber (filename produced but `confident === false`) second, green
-(`confident === true`) last. Status indicated by a colored dot or shadcn
-`Badge`, plus truncated filename/original name. Row click selects that file
-for the detail panel. Use `SidebarMenuButton` with `isActive`.
+(`confident === true`) last. Status indicated by a colored dot, plus
+truncated filename/original name. Row click selects that file for the detail
+panel. Use `SidebarMenuButton` with `isActive`.
 
 **Detail panel** (selected file): 
-- thumbnail `<img src="data:image/png;base64,{thumb}">`, click opens a
-  shadcn `Dialog` with a larger version
+- thumbnail `<img src="data:image/png;base64,{thumb}">`, with inline
+  zoom (1x-4x) and drag-to-pan controls — no modal
 - the three extracted fields shown read-only (`Sorszám`, `Teljesítés`,
   `Vevő`), each with a check/warning icon from `field.ok`
 - `problems[]` rendered as a warning list when non-empty

@@ -7,7 +7,6 @@ import {
   nextAvailableName,
   stagingKey,
 } from '../lib/keys';
-import { appendUndoLog, type UndoEntry } from '../lib/undo';
 
 export const confirm = new Hono<AppBindings>();
 
@@ -32,7 +31,6 @@ confirm.post('/api/confirm', async (c) => {
     if (meta.status === 'done') usedNames.add(meta.filename);
   }
 
-  const undoEntries: UndoEntry[] = [];
   const results: {
     fileId: string;
     ok: boolean;
@@ -67,11 +65,8 @@ confirm.post('/api/confirm', async (c) => {
       httpMetadata: { contentType: 'application/json' },
     });
 
-    undoEntries.push({ fileId: item.token });
     results.push({ fileId: item.token, ok: true, filename });
   }
-
-  await appendUndoLog(c.env.BUCKET, batchId, undoEntries);
 
   c.get('logger').info('confirm.completed', {
     batchId,
