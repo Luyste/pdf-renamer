@@ -270,7 +270,7 @@ export function useBatch(
     // Revoking right after click() can cancel the download (Safari, Firefox)
     // before the browser has read the blob.
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    toast.success(t('toastDownloadStarted'));
+    toast.success(t('toastDownloadComplete'));
   }, [batchId, batchQuery.data, t]);
 
   const handleDeleteOriginals = useCallback(async () => {
