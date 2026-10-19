@@ -32,7 +32,6 @@ export function App() {
     handleFilenameChange,
     handleConfirm,
     handleSkip,
-    handleDeleteFile,
     handleDeleteFiles,
     selectRelative,
     handleConfirmAll,
@@ -70,7 +69,6 @@ export function App() {
             selectedId={selectedId}
             onSelect={setSelectedId}
             onFiles={handleFiles}
-            onDeleteFile={handleDeleteFile}
             onDeleteFiles={handleDeleteFiles}
           />
           <div className="flex min-h-0 flex-1 flex-col">

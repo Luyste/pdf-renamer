@@ -30,7 +30,6 @@ type Props = {
   selectedId: string | null;
   onSelect: (fileId: string) => void;
   onFiles: (files: File[]) => void;
-  onDeleteFile: (fileId: string) => void;
   onDeleteFiles: (fileIds: string[]) => void;
 };
 
@@ -39,7 +38,6 @@ export function FileSidebar({
   selectedId,
   onSelect,
   onFiles,
-  onDeleteFile,
   onDeleteFiles,
 }: Props) {
   const { t } = useLanguage();
@@ -102,7 +100,7 @@ export function FileSidebar({
                   isChecked={checked.has(entry.fileId)}
                   onSelect={() => onSelect(entry.fileId)}
                   onToggleChecked={(v) => toggleChecked(entry.fileId, v)}
-                  onDelete={() => onDeleteFile(entry.fileId)}
+                  onDelete={() => onDeleteFiles([entry.fileId])}
                 />
               ))}
             </SidebarMenu>

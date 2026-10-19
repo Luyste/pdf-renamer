@@ -223,17 +223,6 @@ export function useBatch(
     [advanceSelection, patchEntries],
   );
 
-  const handleDeleteFile = useCallback(
-    async (fileId: string) => {
-      if (!batchId) return;
-      await deleteFile(batchId, fileId);
-      patchEntries((entries) => entries.filter((e) => e.fileId !== fileId));
-      if (selectedId === fileId) setSelectedId(null);
-      toast.success(t('toastFileDeleted'));
-    },
-    [batchId, patchEntries, selectedId, t],
-  );
-
   const handleDeleteFiles = useCallback(
     async (fileIds: string[]) => {
       if (!batchId || fileIds.length === 0) return;
@@ -241,7 +230,11 @@ export function useBatch(
       const removed = new Set(fileIds);
       patchEntries((entries) => entries.filter((e) => !removed.has(e.fileId)));
       if (selectedId && removed.has(selectedId)) setSelectedId(null);
-      toast.success(t('toastFilesDeleted', { count: fileIds.length }));
+      toast.success(
+        fileIds.length === 1
+          ? t('toastFileDeleted')
+          : t('toastFilesDeleted', { count: fileIds.length }),
+      );
     },
     [batchId, patchEntries, selectedId, t],
   );
@@ -313,7 +306,6 @@ export function useBatch(
     handleFilenameChange,
     handleConfirm,
     handleSkip,
-    handleDeleteFile,
     handleDeleteFiles,
     selectRelative,
     handleConfirmAll,
