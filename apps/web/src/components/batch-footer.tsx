@@ -1,4 +1,4 @@
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import {
   AlertDialog,
@@ -34,6 +34,7 @@ export function BatchFooter({
   const [parsingWarningOpen, setParsingWarningOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const ready = entries.filter((e) => e.result?.confident).length;
   const needsReview = entries.length - ready;
@@ -41,11 +42,13 @@ export function BatchFooter({
 
   const runConfirmAll = async () => {
     setBusy(true);
+    setDownloading(true);
     try {
       await onConfirmAll();
       setAlertOpen(true);
     } finally {
       setBusy(false);
+      setDownloading(false);
     }
   };
 
@@ -106,6 +109,7 @@ export function BatchFooter({
           onClick={handleConfirmAllClick}
           disabled={busy || entries.length === 0}
         >
+          {downloading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {t('footerConfirmAll')}
         </Button>
       </div>
