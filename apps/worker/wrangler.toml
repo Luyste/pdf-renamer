@@ -23,16 +23,16 @@ bucket_name = "renamer-storage"
 #   parsed/{batchId}/{fileId}.json   — cached OCR result, for reload rehydration
 #   processed/{sha256}.json          — cross-batch "already processed" record
 #
-# R2 lifecycle rules (staging/ and parsed/ expire after 30 days;
-# processed/ is long-lived — 180 days — since its entire purpose is to
-# outlive any one batch) are not expressible in wrangler.toml — configure
-# them once with:
+# R2 lifecycle rules are not expressible in wrangler.toml. As configured on
+# the bucket (check with `wrangler r2 bucket lifecycle list renamer-storage`):
+#   staging/    expires after 7 days  — an unfinished batch older than a week
+#                                       loses its PDFs and reloads as empty
+#   parsed/     expires after 30 days
+#   processed/  no expiry rule — records are tiny and exist to outlive any
+#               one batch; add one if duplicate detection should forget
+# Rules are added with the positional form (name, then prefix), e.g.:
 #   wrangler r2 bucket lifecycle add renamer-storage \
-#     --prefix staging/ --expire-days 30
-#   wrangler r2 bucket lifecycle add renamer-storage \
-#     --prefix parsed/ --expire-days 30
-#   wrangler r2 bucket lifecycle add renamer-storage \
-#     --prefix processed/ --expire-days 180
+#     renamer-storage-parsed parsed/ --expire-days 30
 #
 # These are a safety net for batches nobody explicitly deletes — DELETE
 # /api/batch/:batchId (see routes/batch.ts) removes staging/ and parsed/ for a
