@@ -27,13 +27,12 @@ export async function uploadFiles(
   // of a single long request with nothing on screen.
   for (const f of files) {
     const form = new FormData();
-    form.append('files', f);
+    form.append('file', f);
     const res = await apiFetch(
       `/api/upload?batchId=${encodeURIComponent(batchId)}`,
       { method: 'POST', body: form },
     );
-    const [uploaded]: UploadedFile[] = await res.json();
-    onUploaded(uploaded);
+    onUploaded(await res.json());
   }
 }
 

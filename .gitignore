@@ -56,3 +56,6 @@ Thumbs.db
 .nx/self-healing
 .nx/migrate-runs
 vite.config.*.timestamp*
+
+# python coverage data
+.coverage
