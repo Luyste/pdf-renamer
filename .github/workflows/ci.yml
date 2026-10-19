@@ -32,6 +32,10 @@ jobs:
       # installed on a fresh checkout and fail with "Failed to spawn".
       - run: uv sync
 
+      # ocr-service has one test that OCRs a real scan; it is skipped, not
+      # failed, when Tesseract is missing, so install it to actually run it.
+      - run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends tesseract-ocr tesseract-ocr-hun
+
       - uses: nrwl/nx-set-shas@v4
 
       - name: Lint, test, build affected projects

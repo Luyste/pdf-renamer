@@ -20,6 +20,12 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
+      - run: uv sync
+
+      # A tag can point at any commit, not only one that passed CI on a PR.
+      - name: Test all apps
+        run: bunx nx run-many -t test --parallel=3
+
       - name: Build all apps
         run: bunx nx run-many -t build --parallel=3
 
