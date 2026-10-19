@@ -21,10 +21,10 @@ export async function deleteFile(batchId: string, fileId: string) {
 export async function uploadFiles(
   batchId: string,
   files: File[],
-): Promise<UploadedFile[]> {
-  // One file per request: the worker buffers a whole request body in memory
-  // (128 MB cap), so sending 50 scans in one form could crash the upload.
-  const uploaded: UploadedFile[] = [];
+  onUploaded: (file: UploadedFile) => void,
+): Promise<void> {
+  // One file per request, so the UI can show each one as it lands instead
+  // of a single long request with nothing on screen.
   for (const f of files) {
     const form = new FormData();
     form.append('files', f);
@@ -32,9 +32,9 @@ export async function uploadFiles(
       `/api/upload?batchId=${encodeURIComponent(batchId)}`,
       { method: 'POST', body: form },
     );
-    uploaded.push(...(await res.json()));
+    const [uploaded]: UploadedFile[] = await res.json();
+    onUploaded(uploaded);
   }
-  return uploaded;
 }
 
 export function subscribeToParse(

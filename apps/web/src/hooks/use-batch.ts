@@ -1,4 +1,9 @@
-import type { BatchState, ConfirmItem, FileEntry } from '@org/shared-types';
+import type {
+  BatchState,
+  ConfirmItem,
+  FileEntry,
+  ParseResult,
+} from '@org/shared-types';
 import { MAX_BATCH_SIZE } from '@org/shared-types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -41,35 +46,50 @@ export function useBatch(
     [batchId, queryClient],
   );
 
+  // Takes the batch id explicitly instead of going through patchEntries: SSE
+  // callbacks outlive the render that started them, and for a brand-new
+  // batch that render's batchId is still null, so results were dropped and
+  // the files sat on "parsing" until a reload.
+  const applyParseResult = useCallback(
+    (forBatchId: string, r: ParseResult & { fileId: string }) => {
+      queryClient.setQueryData<BatchState>(['batch', forBatchId], (old) =>
+        old
+          ? {
+              ...old,
+              entries: old.entries.map((e) =>
+                e.fileId === r.fileId
+                  ? {
+                      ...e,
+                      status: 'parsed',
+                      result: r,
+                      filename: r.filename ?? '',
+                    }
+                  : e,
+              ),
+            }
+          : old,
+      );
+    },
+    [queryClient],
+  );
+
   // Resume any parses that were still in flight when the page was reloaded.
   useEffect(() => {
     if (hasResumedParsing.current || !batchQuery.data) return;
     hasResumedParsing.current = true;
+    const resumeBatchId = batchQuery.data.batchId;
     const pending = batchQuery.data.entries.filter(
       (e) => e.status === 'parsing',
     );
     if (pending.length === 0) return;
 
     subscribeToParse(
-      batchQuery.data.batchId,
+      resumeBatchId,
       pending.map((e) => e.fileId),
-      (r) => {
-        patchEntries((entries) =>
-          entries.map((e) =>
-            e.fileId === r.fileId
-              ? {
-                  ...e,
-                  status: 'parsed',
-                  result: r,
-                  filename: r.filename ?? '',
-                }
-              : e,
-          ),
-        );
-      },
+      (r) => applyParseResult(resumeBatchId, r),
       () => {},
     );
-  }, [batchQuery.data, patchEntries]);
+  }, [batchQuery.data, applyParseResult]);
 
   const entryList = useMemo(
     () => sortEntries(batchQuery.data?.entries ?? []),
@@ -104,47 +124,59 @@ export function useBatch(
 
       const activeBatchId = batchId ?? crypto.randomUUID();
       if (!batchId) {
+        // Seed an empty batch so the query starts with data and never
+        // fetches: a GET racing the upload would see half the files,
+        // duplicate their entries and start a second parse for them.
+        queryClient.setQueryData<BatchState>(['batch', activeBatchId], {
+          batchId: activeBatchId,
+          entries: [],
+        });
         setBatchId(activeBatchId);
         saveActiveBatchId(activeBatchId);
       }
-      const uploaded = await uploadFiles(activeBatchId, toUpload);
 
-      queryClient.setQueryData<BatchState>(['batch', activeBatchId], (old) => {
-        const newEntries: FileEntry[] = uploaded.map((u) => ({
-          fileId: u.fileId,
-          originalName: u.originalName,
-          status: 'parsing',
-          result: null,
-          filename: '',
-          alreadyProcessed: u.alreadyProcessed,
-        }));
-        return {
-          batchId: activeBatchId,
-          entries: [...(old?.entries ?? []), ...newEntries],
-        };
-      });
-
-      subscribeToParse(
-        activeBatchId,
-        uploaded.map((u) => u.fileId),
-        (r) => {
-          patchEntries((entries) =>
-            entries.map((e) =>
-              e.fileId === r.fileId
-                ? {
-                    ...e,
-                    status: 'parsed',
-                    result: r,
-                    filename: r.filename ?? '',
-                  }
-                : e,
-            ),
+      const total = toUpload.length;
+      const toastId = toast.loading(t('uploadProgress', { done: 0, total }));
+      const uploadedIds: string[] = [];
+      try {
+        await uploadFiles(activeBatchId, toUpload, (u) => {
+          uploadedIds.push(u.fileId);
+          // Each file shows up as soon as it lands, so a long upload
+          // visibly moves instead of looking frozen.
+          const entry: FileEntry = {
+            fileId: u.fileId,
+            originalName: u.originalName,
+            status: 'parsing',
+            result: null,
+            filename: '',
+            alreadyProcessed: u.alreadyProcessed,
+          };
+          queryClient.setQueryData<BatchState>(
+            ['batch', activeBatchId],
+            (old) => ({
+              batchId: activeBatchId,
+              entries: [...(old?.entries ?? []), entry],
+            }),
           );
-        },
-        () => {},
-      );
+          toast.loading(
+            t('uploadProgress', { done: uploadedIds.length, total }),
+            { id: toastId },
+          );
+        });
+      } finally {
+        toast.dismiss(toastId);
+        // Parse whatever made it up, even if a later file failed.
+        if (uploadedIds.length > 0) {
+          subscribeToParse(
+            activeBatchId,
+            uploadedIds,
+            (r) => applyParseResult(activeBatchId, r),
+            () => {},
+          );
+        }
+      }
     },
-    [batchId, batchQuery.data, queryClient, patchEntries, t],
+    [batchId, batchQuery.data, queryClient, applyParseResult, t],
   );
 
   const handleFilenameChange = useCallback(

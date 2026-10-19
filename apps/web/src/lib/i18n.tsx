@@ -46,6 +46,7 @@ const translations = {
     keep: 'Megtartás',
     delete: 'Törlés',
     toastDownloadStarted: 'Letöltés elindult',
+    uploadProgress: 'Feltöltés: {{done}}/{{total}}…',
     toastOriginalsDeleted: 'Eredeti fájlok törölve',
     batchLimitReached:
       'Elérte a köteg méretkorlátját — legfeljebb {{max}} fájl kötegenként.',
@@ -103,6 +104,7 @@ const translations = {
     keep: 'Keep',
     delete: 'Delete',
     toastDownloadStarted: 'Download started',
+    uploadProgress: 'Uploading {{done}}/{{total}}…',
     toastOriginalsDeleted: 'Originals deleted',
     batchLimitReached: 'Batch limit reached — max {{max}} files per batch.',
     batchLimitTruncated:
