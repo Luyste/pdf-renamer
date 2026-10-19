@@ -45,7 +45,7 @@ const translations = {
       'Az átnevezett fájlokat már letöltötte. Ez véglegesen eltávolítja a feltöltött eredeti fájlokat a tárhelyről.',
     keep: 'Megtartás',
     delete: 'Törlés',
-    toastDownloadStarted: 'Letöltés elindult',
+    toastDownloadComplete: 'Letöltés kész',
     uploadProgress: 'Feltöltés: {{done}}/{{total}}…',
     toastOriginalsDeleted: 'Eredeti fájlok törölve',
     batchLimitReached:
@@ -103,7 +103,7 @@ const translations = {
       'The renamed files have been downloaded. This removes the uploaded originals from storage and cannot be undone.',
     keep: 'Keep',
     delete: 'Delete',
-    toastDownloadStarted: 'Download started',
+    toastDownloadComplete: 'Download complete',
     uploadProgress: 'Uploading {{done}}/{{total}}…',
     toastOriginalsDeleted: 'Originals deleted',
     batchLimitReached: 'Batch limit reached — max {{max}} files per batch.',

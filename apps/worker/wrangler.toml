@@ -30,6 +30,9 @@ bucket_name = "renamer-storage"
 #   parsed/     expires after 30 days
 #   processed/  no expiry rule — records are tiny and exist to outlive any
 #               one batch; add one if duplicate detection should forget
+#   meta/, done/, review/  expire after 1, 30 and 30 days — leftovers from
+#               older versions that nothing reads; delete these three rules
+#               once the prefixes are empty
 # Rules are added with the positional form (name, then prefix), e.g.:
 #   wrangler r2 bucket lifecycle add renamer-storage \
 #     renamer-storage-parsed parsed/ --expire-days 30
