@@ -3,7 +3,6 @@ import type { AppBindings } from './env';
 import { requestLogging } from './lib/request-logging';
 import { batch } from './routes/batch';
 import { clientLog } from './routes/client-log';
-import { confirm } from './routes/confirm';
 import { download } from './routes/download';
 import { health } from './routes/health';
 import { parse } from './routes/parse';
@@ -29,7 +28,6 @@ app.onError((err, c) => {
 
 app.route('/', upload);
 app.route('/', parse);
-app.route('/', confirm);
 app.route('/', download);
 app.route('/', batch);
 app.route('/', health);

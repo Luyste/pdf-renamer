@@ -3,6 +3,11 @@ main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+# Persists the structured JSON logs (worker + client-log + container) in
+# Workers Logs so a requestId can be traced after the fact.
+[observability]
+enabled = true
+
 # Serves apps/web's Vite build output as static assets alongside the API routes.
 # apps/web's build target must output here so a single `wrangler deploy` ships both.
 [assets]
@@ -15,22 +20,22 @@ bucket_name = "renamer-storage"
 # R2 key layout — the PDF is stored exactly once, under staging/. Everything
 # else is a small JSON pointer, never a duplicate copy of the file:
 #   staging/{batchId}/{fileId}.pdf   — the only copy of the actual PDF bytes
-#   meta/{batchId}/{fileId}.json     — {status: done|review, filename, originalName}
+#   parsed/{batchId}/{fileId}.json   — cached OCR result, for reload rehydration
 #   processed/{sha256}.json          — cross-batch "already processed" record
 #
-# R2 lifecycle rules (staging/ and meta/ expire after 30 days;
+# R2 lifecycle rules (staging/ and parsed/ expire after 30 days;
 # processed/ is long-lived — 180 days — since its entire purpose is to
 # outlive any one batch) are not expressible in wrangler.toml — configure
 # them once with:
 #   wrangler r2 bucket lifecycle add renamer-storage \
 #     --prefix staging/ --expire-days 30
 #   wrangler r2 bucket lifecycle add renamer-storage \
-#     --prefix meta/ --expire-days 30
+#     --prefix parsed/ --expire-days 30
 #   wrangler r2 bucket lifecycle add renamer-storage \
 #     --prefix processed/ --expire-days 180
 #
 # These are a safety net for batches nobody explicitly deletes — DELETE
-# /api/batch/:batchId (see routes/batch.ts) removes staging/ and meta/ for a
+# /api/batch/:batchId (see routes/batch.ts) removes staging/ and parsed/ for a
 # batch immediately when the user confirms cleanup in the UI.
 # processed/ is deliberately left alone by that endpoint too.
 

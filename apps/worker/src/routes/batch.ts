@@ -1,15 +1,12 @@
 import type {
   BatchState,
   FileEntry,
-  FileStatus,
   ParseResult,
   ProcessedRecord,
 } from '@org/shared-types';
 import { Hono } from 'hono';
 import type { AppBindings } from '../env';
 import {
-  metaKey,
-  metaPrefix,
   parsedKey,
   parsedPrefix,
   processedKey,
@@ -18,12 +15,6 @@ import {
 } from '../lib/keys';
 
 export const batch = new Hono<AppBindings>();
-
-type FileMeta = {
-  status: 'done' | 'review';
-  filename: string;
-  originalName: string;
-};
 
 async function deletePrefix(bucket: R2Bucket, prefix: string) {
   const listed = await bucket.list({ prefix });
@@ -45,32 +36,26 @@ batch.get('/api/batch/:batchId', async (c) => {
       const originalName =
         head?.customMetadata?.originalName ?? `${fileId}.pdf`;
 
-      const [parsedObj, metaObj, processedObj] = await Promise.all([
+      const [parsedObj, processedObj] = await Promise.all([
         c.env.BUCKET.get(parsedKey(batchId, fileId)),
-        c.env.BUCKET.get(metaKey(batchId, fileId)),
         head?.customMetadata?.sha256
           ? c.env.BUCKET.get(processedKey(head.customMetadata.sha256))
           : Promise.resolve(null),
       ]);
 
       const result = parsedObj ? await parsedObj.json<ParseResult>() : null;
-      const meta = metaObj ? await metaObj.json<FileMeta>() : null;
       const alreadyProcessed = processedObj
         ? await processedObj.json<ProcessedRecord>()
         : null;
 
-      let status: FileStatus;
-      if (meta?.status === 'done') status = 'confirmed';
-      else if (meta?.status === 'review') status = 'skipped';
-      else if (result) status = 'parsed';
-      else status = 'parsing';
-
+      // Confirm/skip and filename edits live only in the browser until
+      // "Confirm and Download" sends them, so the server knows parsed/parsing.
       return {
         fileId,
         originalName,
-        status,
+        status: result ? 'parsed' : 'parsing',
         result,
-        filename: meta?.filename ?? result?.filename ?? '',
+        filename: result?.filename ?? '',
         alreadyProcessed,
       };
     }),
@@ -84,7 +69,6 @@ batch.delete('/api/batch/:batchId/files/:fileId', async (c) => {
   const { batchId, fileId } = c.req.param();
   await c.env.BUCKET.delete(stagingKey(batchId, fileId));
   await c.env.BUCKET.delete(parsedKey(batchId, fileId));
-  await c.env.BUCKET.delete(metaKey(batchId, fileId));
   c.get('logger').info('batch.file_deleted', { batchId, fileId });
   return c.json({ deleted: true });
 });
@@ -96,7 +80,6 @@ batch.delete('/api/batch/:batchId', async (c) => {
   const batchId = c.req.param('batchId');
   await deletePrefix(c.env.BUCKET, stagingPrefix(batchId));
   await deletePrefix(c.env.BUCKET, parsedPrefix(batchId));
-  await deletePrefix(c.env.BUCKET, metaPrefix(batchId));
   c.get('logger').info('batch.deleted', { batchId });
   return c.json({ deleted: true });
 });

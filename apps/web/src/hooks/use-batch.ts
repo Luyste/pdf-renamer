@@ -9,7 +9,6 @@ import {
   saveActiveBatchId,
 } from '@/lib/active-batch';
 import {
-  confirmBatch,
   deleteBatch,
   deleteFile,
   downloadBatch,
@@ -235,9 +234,7 @@ export function useBatch(
       filename: e.filename || null,
       skip: e.status === 'skipped',
     }));
-    await confirmBatch(batchId, items);
-
-    const blob = await downloadBatch(batchId);
+    const blob = await downloadBatch(batchId, items);
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -245,7 +242,9 @@ export function useBatch(
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
+    // Revoking right after click() can cancel the download (Safari, Firefox)
+    // before the browser has read the blob.
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
     toast.success(t('toastDownloadStarted'));
   }, [batchId, batchQuery.data, t]);
 

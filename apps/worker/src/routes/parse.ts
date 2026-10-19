@@ -7,10 +7,11 @@ import { ocrParse } from '../lib/ocr-client';
 
 export const parse = new Hono<AppBindings>();
 
-// The OCR container is CPU-bound (Tesseract subprocess per page), so this
-// caps how many requests are in flight at once rather than firing all of
-// them at the container simultaneously.
-const PARSE_CONCURRENCY = 4;
+// The OCR container is CPU-bound (Tesseract subprocess per page) and runs as
+// a single small instance, so extra parallelism adds no throughput — it only
+// splits the CPU further and pushes slow scans past Tesseract's 60s timeout
+// in extract.py. Two keeps the pipe full without starving each request.
+const PARSE_CONCURRENCY = 2;
 
 /** Stand-in result for a file the OCR service never managed to parse, so the
  * UI can move it out of "parsing" and show why instead of spinning forever. */

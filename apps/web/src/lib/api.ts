@@ -22,13 +22,19 @@ export async function uploadFiles(
   batchId: string,
   files: File[],
 ): Promise<UploadedFile[]> {
-  const form = new FormData();
-  for (const f of files) form.append('files', f);
-  const res = await apiFetch(
-    `/api/upload?batchId=${encodeURIComponent(batchId)}`,
-    { method: 'POST', body: form },
-  );
-  return res.json();
+  // One file per request: the worker buffers a whole request body in memory
+  // (128 MB cap), so sending 50 scans in one form could crash the upload.
+  const uploaded: UploadedFile[] = [];
+  for (const f of files) {
+    const form = new FormData();
+    form.append('files', f);
+    const res = await apiFetch(
+      `/api/upload?batchId=${encodeURIComponent(batchId)}`,
+      { method: 'POST', body: form },
+    );
+    uploaded.push(...(await res.json()));
+  }
+  return uploaded;
 }
 
 export function subscribeToParse(
@@ -62,19 +68,15 @@ export function subscribeToParse(
   return () => source.close();
 }
 
-export async function confirmBatch(batchId: string, items: ConfirmItem[]) {
-  const res = await apiFetch('/api/confirm', {
+export async function downloadBatch(
+  batchId: string,
+  items: ConfirmItem[],
+): Promise<Blob> {
+  const res = await apiFetch('/api/download', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ batchId, items }),
   });
-  return res.json();
-}
-
-export async function downloadBatch(batchId: string): Promise<Blob> {
-  const res = await apiFetch(
-    `/api/download?batchId=${encodeURIComponent(batchId)}`,
-  );
   return res.blob();
 }
 
