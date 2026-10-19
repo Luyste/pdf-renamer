@@ -22,6 +22,11 @@ export function useReviewShortcuts({
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement;
 
+      // An open dialog owns the keyboard — otherwise Enter on the "Delete
+      // originals?" dialog's focused button confirms the selected file
+      // behind it (and preventDefault swallows the button press).
+      if (target?.closest('[role="alertdialog"]')) return;
+
       if (e.key === 'Enter' && !(target instanceof HTMLTextAreaElement)) {
         if (!selectedId) return;
         e.preventDefault();

@@ -1,67 +1,74 @@
-import type { ProcessedRecord } from '@org/shared-types';
+import type { ConfirmItem, ProcessedRecord } from '@org/shared-types';
 import { downloadZip } from 'client-zip';
 import { Hono } from 'hono';
 import type { AppBindings } from '../env';
-import { metaPrefix, processedKey, stagingKey } from '../lib/keys';
+import { nextAvailableName, processedKey, stagingKey } from '../lib/keys';
 
 export const download = new Hono<AppBindings>();
 
-type FileMeta = {
-  status: 'done' | 'review';
-  filename: string;
-  originalName: string;
-};
-type ZipInput = { name: string; lastModified: Date; input: ReadableStream };
+/** Zips the confirmed PDFs straight out of staging/ under the filenames the
+ * browser sends. Nothing about the confirm step is persisted, so retrying
+ * with the same items always yields the same ZIP. */
+download.post('/api/download', async (c) => {
+  const { batchId, items } = await c.req.json<{
+    batchId: string;
+    items: ConfirmItem[];
+  }>();
+  if (!batchId || !Array.isArray(items)) {
+    return c.json({ error: 'batchId and items required' }, 400);
+  }
 
-download.get('/api/download', async (c) => {
-  const batchId = c.req.query('batchId');
-  if (!batchId) return c.json({ error: 'batchId query param required' }, 400);
+  const usedNames = new Set<string>();
+  const files = items
+    .filter((item) => !item.skip && item.filename)
+    .map((item) => {
+      const name = nextAvailableName(usedNames, item.filename as string);
+      usedNames.add(name);
+      return { fileId: item.token, originalName: item.original, name };
+    });
 
-  const prefix = metaPrefix(batchId);
-  const listed = await c.env.BUCKET.list({ prefix });
+  const bucket = c.env.BUCKET;
+  const logger = c.get('logger');
 
-  const resolved = await Promise.all(
-    listed.objects.map(async (object): Promise<ZipInput | null> => {
-      const metaObj = await c.env.BUCKET.get(object.key);
-      if (!metaObj) return null;
-      const meta = await metaObj.json<FileMeta>();
-      if (meta.status !== 'done') return null;
+  // Lazy on purpose: client-zip pulls the next entry only after it has
+  // streamed the previous one, so at most one R2 body is open at a time.
+  // Opening every body up front left the later ones sitting idle for the
+  // whole download, and one dropped body aborts the entire ZIP mid-stream.
+  const entries = async function* () {
+    let fileCount = 0;
+    for (const file of files) {
+      const pdf = await bucket.get(stagingKey(batchId, file.fileId));
+      if (!pdf) {
+        logger.warn('download.file_missing', { batchId, fileId: file.fileId });
+        continue;
+      }
+      yield { name: file.name, lastModified: pdf.uploaded, input: pdf.body };
+      fileCount += 1;
 
-      const fileId = object.key.slice(prefix.length).replace(/\.json$/, '');
-      const pdf = await c.env.BUCKET.get(stagingKey(batchId, fileId));
-      if (!pdf?.body) return null;
-
-      // Only now — actually zipped and about to be handed to the user —
-      // does this file count as "processed" for cross-batch dedupe.
+      // Resumes only once that body has been fully zipped — only now does
+      // the file count as "processed" for cross-batch dedupe.
       if (pdf.customMetadata?.sha256) {
         const record: ProcessedRecord = {
-          originalName: meta.originalName,
-          filename: meta.filename,
+          originalName: file.originalName,
+          filename: file.name,
           batchId,
           downloadedAt: new Date().toISOString(),
         };
-        await c.env.BUCKET.put(
+        await bucket.put(
           processedKey(pdf.customMetadata.sha256),
           JSON.stringify(record),
           { httpMetadata: { contentType: 'application/json' } },
         );
       }
+    }
+    logger.info('download.zip_built', {
+      batchId,
+      fileCount,
+      skipped: items.length - files.length,
+    });
+  };
 
-      return {
-        name: meta.filename,
-        lastModified: object.uploaded,
-        input: pdf.body,
-      };
-    }),
-  );
-  const inputs = resolved.filter((entry): entry is ZipInput => entry !== null);
-
-  c.get('logger').info('download.zip_built', {
-    batchId,
-    fileCount: inputs.length,
-  });
-
-  const zipResponse = downloadZip(inputs);
+  const zipResponse = downloadZip(entries());
   return new Response(zipResponse.body, {
     headers: {
       'Content-Type': 'application/zip',

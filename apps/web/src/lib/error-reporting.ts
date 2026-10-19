@@ -24,12 +24,13 @@ export function installErrorReporting() {
 
     reportClientLog('error', message, { requestId });
 
-    if (requestId) {
-      toast.error(
-        translateOutsideReact('toastUnexpectedError', {
-          ref: requestId.slice(0, 8),
-        }),
-      );
-    }
+    // Toast every failure, not only ApiErrors: a ZIP stream cut off
+    // mid-download or a fetch blocked by an expired Access session rejects
+    // with a plain TypeError, and used to fail with no feedback at all.
+    toast.error(
+      translateOutsideReact('toastUnexpectedError', {
+        ref: requestId ? requestId.slice(0, 8) : '-',
+      }),
+    );
   });
 }

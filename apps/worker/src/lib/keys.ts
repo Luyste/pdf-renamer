@@ -6,16 +6,6 @@ export function stagingPrefix(batchId: string): string {
   return `staging/${batchId}/`;
 }
 
-/** Small JSON pointer recording a file's outcome (status + final filename) —
- * never the PDF bytes themselves. The PDF stays in its one staging/ copy. */
-export function metaKey(batchId: string, fileId: string): string {
-  return `meta/${batchId}/${fileId}.json`;
-}
-
-export function metaPrefix(batchId: string): string {
-  return `meta/${batchId}/`;
-}
-
 /** Cached OCR result (the same ParseResult sent over SSE), persisted so
  * GET /api/batch/:id can rehydrate full state without re-running OCR. */
 export function parsedKey(batchId: string, fileId: string): string {
