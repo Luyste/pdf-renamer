@@ -3,12 +3,23 @@
   "version": "0.0.1",
   "private": true,
   "nx": {
+    "implicitDependencies": [
+      "@org/web"
+    ],
     "targets": {
       "dev": {
         "continuous": true,
         "executor": "nx:run-commands",
         "options": {
           "command": "wrangler dev",
+          "cwd": "apps/worker"
+        }
+      },
+      "test": {
+        "executor": "nx:run-commands",
+        "cache": true,
+        "options": {
+          "command": "bun test",
           "cwd": "apps/worker"
         }
       },
